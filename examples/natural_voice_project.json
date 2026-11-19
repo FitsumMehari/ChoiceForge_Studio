@@ -1,0 +1,53 @@
+{
+  "title": "IMPOSSIBLE CHOICES",
+  "format": "Would You Rather",
+  "aspect": "9:16",
+  "theme": "Electric Midnight",
+  "fps": 24,
+  "intro_seconds": 1.5,
+  "outro_seconds": 1.5,
+  "seconds_per_question": 5,
+  "questions": [
+    {
+      "a": "Pause time for 10 minutes a day",
+      "b": "Teleport anywhere once a week",
+      "note": "Which power would you choose?"
+    },
+    {
+      "a": "Live in a peaceful ocean villa",
+      "b": "Live above a neon-lit city",
+      "note": "Your dream home says a lot."
+    },
+    {
+      "a": "Speak every language fluently",
+      "b": "Play every instrument perfectly",
+      "note": "What's your hidden superpower?"
+    },
+    {
+      "a": "Explore the deep ocean",
+      "b": "Be the first person on Mars",
+      "note": "Which adventure wins?"
+    },
+    {
+      "a": "Travel the world for free",
+      "b": "Attend any concert for free",
+      "note": "Adventure or music?"
+    }
+  ],
+  "motion": "Gentle",
+  "narration": {
+    "enabled": true,
+    "provider": "kokoro",
+    "voice": "af_heart",
+    "rate": 0,
+    "pitch": 0,
+    "pause": 0.45,
+    "thinking_seconds": 2.0,
+    "auto_extend": true,
+    "intro_text": "Ready for some impossible choices?",
+    "outro_text": "Tell us your choices in the comments!",
+    "energy": "Warm conversational",
+    "quality_mode": "natural_only",
+    "delivery_mode": "conversational"
+  }
+}
