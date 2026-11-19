@@ -1,0 +1,6 @@
+Pillow>=10,<13
+numpy>=2.0.2,<3
+opencv-python-headless>=4.8,<5
+gradio>=5.0,<7
+pytest>=8,<10
+kokoro-onnx>=0.6.1,<0.7
