@@ -15,6 +15,7 @@ import gradio as gr
 from renderer import DEFAULT_QUESTIONS, ROOT, THEMES, bg_image, canvas_dims, read_project, render, round_scene, splash_scene
 from narration import VOICE_PRESETS, default_narration, voice_clip
 from free_voice import model_status, install_models
+from trivia_video import build_episodes, load_bank, render_series, resolve_zips, summary
 
 OUTPUTS = ROOT / 'outputs'
 OUTPUTS.mkdir(exist_ok=True)
@@ -211,6 +212,40 @@ def add_licensed_track(file_path,title,source,license_type,moods,attribution):
     manifest.write_text(json.dumps(items,indent=2,ensure_ascii=False),encoding='utf-8')
     return f'Added **{title}**. The auto-selector can now match it using your mood tags. Library contains {len(items)} track(s). Your license claims have not been independently verified.'
 
+def trivia_zip_list(text):
+    lines=[line.strip() for line in str(text or '').replace(',', '\n').splitlines() if line.strip()]
+    return lines or None
+
+
+def trivia_overview(zip_text, per_type):
+    try:
+        paths=resolve_zips(trivia_zip_list(zip_text))
+        groups=load_bank(paths)
+        episodes=build_episodes(groups, int(per_type))
+        if not episodes:
+            raise ValueError('Not enough questions to build a video with that many from every type')
+        return summary(groups, episodes, int(per_type))
+    except Exception as exc:
+        raise gr.Error(str(exc)) from exc
+
+
+def run_trivia(zip_text, per_type, episode, render_all, think, answer, intro, outro, aspect, quality, theme, progress=gr.Progress()):
+    try:
+        paths=resolve_zips(trivia_zip_list(zip_text))
+        number=int(episode or 1)
+        selected=None if render_all else [number]
+        def cb(fraction, message):
+            progress(min(0.99, max(0.01, float(fraction) if fraction else 0.01)), desc=message)
+        result=render_series(paths, OUTPUTS/'visual_trivia', per_type=int(per_type), episodes=selected, workers=1,
+                             theme=theme, aspect=aspect, quality=quality, think=float(think), answer=float(answer),
+                             intro=float(intro), outro=float(outro), include_sfx=True, callback=cb)
+        first=result['episodes'][0]
+        status=f"### Trivia export\n{result['summary']}\n\n**This file:** episode {first['episode']:03d} · {first['duration']} sec · {first['resolution']}\n\nFolder: `{result['output']}`"
+        return first['video'], first['thumbnail'], first['answers'], status
+    except Exception as exc:
+        raise gr.Error(str(exc)) from exc
+
+
 CSS='''
 .gradio-container {max-width: 1140px !important; margin: auto !important;}
 #masthead {background: linear-gradient(118deg,#10152a,#2a1745);padding:27px 28px;border-radius:18px;color:#f9f7ff;}
@@ -282,6 +317,37 @@ with gr.Blocks(title='ChoiceForge Studio — original interactive videos') as de
             archive=gr.File(label='Complete export ZIP (all deliverables)')
         preview_button.click(make_preview,[title,format_,theme,aspect,seconds,intro,outro,question_table,bg],[preview_img])
         render_button.click(run_render,[title,format_,theme,aspect,seconds,intro,outro,question_table,bg,music_mode,music_file,sfx,quality,narration_on,voice_choice,rate,pauses,think,energy,intro_speech,outro_speech,motion],[video,clean,thumb,archive,status])
+    with gr.Tab('🧩 Visual trivia'):
+        gr.Markdown('''### Picture quizzes from the trivia ZIPs
+Each video takes **5 questions from every puzzle type** in the ZIP (count, odd one out, rebus, mirror, and the rest). The picture and the four choices stay up first. **The correct answer and a short explanation appear at the end of that question.**
+
+Put more trivia ZIPs in this folder, or list their paths below, one per line. Questions are used once, in order, until a type runs out.''')
+        trivia_zips=gr.Textbox(value=str(ROOT/'visual_trivia_5000_COMPLETE.zip'), lines=2, label='Trivia ZIP files')
+        with gr.Row():
+            trivia_per=gr.Slider(minimum=1, maximum=8, step=1, value=5, label='Questions from each type')
+            trivia_episode=gr.Number(value=1, precision=0, label='Episode number')
+            trivia_all=gr.Checkbox(label='Render every episode', value=False)
+        with gr.Row():
+            trivia_think=gr.Slider(minimum=4, maximum=12, step=0.5, value=7, label='Seconds to think (medium)')
+            trivia_answer=gr.Slider(minimum=2, maximum=8, step=0.5, value=4, label='Seconds the answer stays up')
+        with gr.Row():
+            trivia_intro=gr.Slider(minimum=0.5, maximum=5, step=0.5, value=2, label='Intro (sec)')
+            trivia_outro=gr.Slider(minimum=0.5, maximum=5, step=0.5, value=2, label='Outro (sec)')
+        with gr.Row():
+            trivia_aspect=gr.Radio(choices=['9:16', '16:9'], value='9:16', label='Video layout')
+            trivia_quality=gr.Radio(choices=['Preview', 'Full HD'], value='Preview', label='Export resolution')
+            trivia_theme=gr.Dropdown(choices=list(THEMES), value='Electric Midnight', label='Visual theme')
+        with gr.Row():
+            trivia_scan=gr.Button('Scan ZIPs', variant='secondary')
+            trivia_render=gr.Button('Render trivia video', variant='primary')
+        trivia_plan=gr.Markdown()
+        trivia_status=gr.Markdown()
+        with gr.Row():
+            trivia_video_out=gr.Video(label='Trivia MP4')
+            trivia_thumb=gr.Image(label='Thumbnail', height=320)
+        trivia_answers=gr.File(label='Answer key')
+        trivia_scan.click(trivia_overview, [trivia_zips, trivia_per], [trivia_plan])
+        trivia_render.click(run_trivia, [trivia_zips, trivia_per, trivia_episode, trivia_all, trivia_think, trivia_answer, trivia_intro, trivia_outro, trivia_aspect, trivia_quality, trivia_theme], [trivia_video_out, trivia_thumb, trivia_answers, trivia_status])
     with gr.Tab('💡 Free idea bank'):
         gr.Markdown('### Offline question bank — no account needed\nGenerate original combinations to get started, then edit them so each episode has its own personality.')
         with gr.Row():
